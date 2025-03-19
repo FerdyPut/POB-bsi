@@ -4,6 +4,7 @@ from io import BytesIO
 from datetime import datetime
 import zipfile
 import os
+import openpyxl
 
 st.set_page_config(page_title="Excel Processor", layout="wide")
 
