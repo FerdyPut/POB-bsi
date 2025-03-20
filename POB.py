@@ -112,7 +112,6 @@ with tab1:
             'Bulan': [bulan] * len(item_products),
             'Item Product': item_products,
             'Total Final POB Adjust RM-AM / DISt': total_final,
-            f'POB {nama_bulan}-{tahun}': pob,
             f'Forecast {bulan_plus_fix}-{tahun}': forecast_1,
             f'Forecast {bulan_plus2_fix}-{tahun}': forecast_2          
         })
