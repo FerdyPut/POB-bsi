@@ -60,7 +60,9 @@ with tab1:
 
                 for sheet_name in sheet_names:
                     df = pd.read_excel(uploaded_file, sheet_name=sheet_name, header=None)
-                    
+
+#--------------------------------------------------------KODE UNTUK POB-DIST, MT
+
                     if selected_pob == "POB - Dist" and selected_channel == "MT":
                         # Ambil informasi dari file
                         dist = df.iloc[1, 1]
@@ -154,6 +156,8 @@ with tab1:
                             f'Forecast {bulan_plus_fix}-{tahun}': forecast_1,
                             f'Forecast {bulan_plus2_fix}-{tahun}': forecast_2          
                         })
+#-------------------------------------------------------KODE UNTUK POB-SSO, MT
+
                     elif selected_pob == "POB - SSO" and selected_channel == "MT":
                         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         now = datetime.now()
@@ -210,6 +214,12 @@ with tab1:
                         result_df = pd.DataFrame(data, columns=["Timestamp", "Sheet", "Produk", "Distributor", "Cabang", "Week", "Nilai"])
 
                         # **Hapus angka "0 0 0 0" dari distributor secara aman**
+                        result_df["Distributor"] = result_df["Distributor"].str.replace(r"(\s0+)+$", "", regex=True)
+
+                    elif selected_pob == "POB - SSO" and selected_channel == "GT":
+                        1
+#---------------------------------------RESULT DAN PENYIMPANAN
+
                    # Simpan data yang sudah dibersihkan
                     all_data[sheet_name] = result_df
                     all_results.append(result_df)
@@ -219,41 +229,49 @@ with tab1:
                     final_result = pd.concat(all_results, ignore_index=True)
 
                     # Pilih sheet untuk ditampilkan
-                    selected_sheet = st.selectbox("Pilih Sheet", sheet_names)
+                    selected_sheet = st.selectbox("Pilih untuk Melihat Sheet!", sheet_names)
 
                     if selected_sheet in all_data:
                         st.write(f"### Data dari {selected_sheet}")
                         st.dataframe(all_data[selected_sheet])
 
-                    if st.button("Submit & Save to Overview"):
+                    if st.button("Proses dan Simpan!"):
                         safe_branch_name = cabang.replace("/", "_")
 
-                    # Tentukan format nama file berdasarkan sheet yang dipilih
-                    if "POB - SSO" in selected_sheet and "MT" in selected_sheet: #udah ada analisis
-                        filename = f"POB - SSO - {nama_bulan} - {tahun}.xlsx"
-                    elif "POB - DIST" in selected_sheet and "MT" in selected_sheet: #udah ada analisis
-                        filename = f"PO {nama_bulan} {safe_branch_name} {tahun}.xlsx"
-                    elif "POB - SSO" in selected_sheet and "GT" in selected_sheet:
-                        filename = f"POB - SSO - GT - {nama_bulan} - {tahun}.xlsx"
-                    elif "POB - DIST" in selected_sheet and "GT" in selected_sheet: 
-                        filename = f"PO {nama_bulan} {safe_branch_name} GT {tahun}.xlsx"
-                    else:
-                        filename = f"PO {nama_bulan} {safe_branch_name} {tahun}.xlsx"  # Default jika tidak ada aturan khusus
-
-                    file_path = os.path.join(FOLDER_PATH, filename)
+                        # Tentukan format nama file berdasarkan sheet yang dipilih
+                        if "POB - SSO" in selected_sheet and "MT" in selected_sheet:
+                            filename = f"POB - SSO - {nama_bulan} - {tahun}.xlsx"
+                        elif "POB - DIST" in selected_sheet and "MT" in selected_sheet:
+                            filename = f"PO {nama_bulan} {safe_branch_name} {tahun}.xlsx"
+                        elif "POB - SSO" in selected_sheet and "GT" in selected_sheet:
+                            filename = f"POB - SSO - GT - {nama_bulan} - {tahun}.xlsx"
+                        elif "POB - DIST" in selected_sheet and "GT" in selected_sheet:
+                            filename = f"PO {nama_bulan} {safe_branch_name} GT {tahun}.xlsx"
+                        else:
+                            filename = f"PO {nama_bulan} {safe_branch_name} {tahun}.xlsx"  # Default jika tidak ada kondisi yang cocok
 
 
+                        def get_unique_filename(folder_path, filename):
+                            base, ext = os.path.splitext(filename)
+                            counter = 1
+                            new_filename = filename
 
-                    # Simpan ke Excel
-                    with pd.ExcelWriter(file_path, engine="xlsxwriter") as writer:
-                        final_result.to_excel(writer, sheet_name="POB Combined", index=False)
+                            while os.path.exists(os.path.join(folder_path, new_filename)):
+                                new_filename = f"{base} ({counter}){ext}"
+                                counter += 1
 
-                    st.success(f"✅ File berhasil disimpan: `{filename}`")
-                    st.rerun()  # Paksa Streamlit untuk refresh tanpa manual reload                        result_df["Distributor"] = result_df["Distributor"].str.replace(r"(\s0+)+$", "", regex=True)
+                            return new_filename  # Harus ada return ini!
 
+                        # Panggil fungsi untuk mendapatkan nama file unik
+                        filename = get_unique_filename(FOLDER_PATH, filename)
+                        file_path = os.path.join(FOLDER_PATH, filename)
 
+                        # Simpan ke Excel
+                        with pd.ExcelWriter(file_path, engine="xlsxwriter") as writer:
+                            final_result.to_excel(writer, sheet_name="POB Combined", index=False)
 
-
+                        st.success(f"✅ File telah dicleaning dan berhasil disimpan di Overview!: `{filename}`")
+                        st.rerun()  # Paksa Streamlit untuk refresh tanpa manual reload                       
                 
     st.subheader("📂 Overview Saved Files")
 
