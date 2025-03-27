@@ -244,14 +244,14 @@ with tab1:
 
 
 
-                        # Simpan ke Excel
-                        with pd.ExcelWriter(file_path, engine="xlsxwriter") as writer:
-                            final_result.to_excel(writer, sheet_name="POB Combined", index=False)
+                    # Simpan ke Excel
+                    with pd.ExcelWriter(file_path, engine="xlsxwriter") as writer:
+                        final_result.to_excel(writer, sheet_name="POB Combined", index=False)
 
-                        st.success(f"✅ File berhasil disimpan: `{filename}`")
-                        st.rerun()  # Paksa Streamlit untuk refresh tanpa manual reload                        result_df["Distributor"] = result_df["Distributor"].str.replace(r"(\s0+)+$", "", regex=True)
+                    st.success(f"✅ File berhasil disimpan: `{filename}`")
+                    st.rerun()  # Paksa Streamlit untuk refresh tanpa manual reload                        result_df["Distributor"] = result_df["Distributor"].str.replace(r"(\s0+)+$", "", regex=True)
 
- 
+
 
 
                 
