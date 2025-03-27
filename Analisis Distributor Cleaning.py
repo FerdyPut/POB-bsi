@@ -149,7 +149,7 @@ with tab1:
                             'Dist': [dist] * len(item_products),
                             'Area': [area] * len(item_products),
                             'Cabang': [cabang] * len(item_products),
-                            'Nama Sheet': [sheet_name] * len(item_products),  # Tambahkan nama sheet
+                            #'Nama Sheet': [sheet_name] * len(item_products),  # Tambahkan nama sheet
                             'Bulan': [bulan_formatted] * len(item_products),
                             'Item Product': item_products,
                             'Total Final POB Adjust RM-AM / DISt': total_final,
