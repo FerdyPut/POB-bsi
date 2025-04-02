@@ -401,3 +401,101 @@ with tab2:
                 st.warning("⚠️ Pilih minimal satu file untuk digabungkan.")
     else:
         st.info("Belum ada file yang tersedia untuk digabungkan.")
+with tab3:
+    import pandas as pd
+import streamlit as st
+from datetime import datetime
+import re
+
+def process_excel(file):
+    df = pd.read_excel(file, sheet_name="Pare pare B", header=None)
+    
+    # Ambil metadata dari file
+    data_type = df.iloc[1, 1]
+    area = df.iloc[2, 1]
+    cabang = df.iloc[3, 1]
+    bulan = datetime.now().strftime('%B')
+    tahun = datetime.now().year
+    
+    # Lokasi awal data
+    start_row = 13  # Baris ke-14
+    start_col = 2    # Kolom C
+    
+    # Cari batas akhir First Value (sebelum "listing by toko")
+    end_col = df.shape[1]
+    for col in range(start_col, df.shape[1]):
+        if "listing by toko" in str(df.iloc[start_row-1, col]).lower():
+            end_col = col
+            break
+    
+    # Lokasi awal dan akhir Second Value
+    second_start_col = 49  # Sesuai dengan kolom AX
+    second_end_col = df.shape[1]
+    
+    # Ambil nama produk
+    first_products = df.iloc[start_row-1, start_col:end_col].dropna().values.tolist()
+    second_products = df.iloc[start_row-1, second_start_col:second_end_col].dropna().values.tolist()
+    
+    # Ambil data customer dan kode
+    data_rows = df.iloc[start_row:, :].dropna(how='all')
+    kode_list = data_rows.iloc[:, 0].astype(str).tolist()
+    customer_list = data_rows.iloc[:, 1].astype(str).tolist()
+    
+    # Ambil nilai produk
+    first_values = data_rows.iloc[:, start_col:end_col].apply(pd.to_numeric, errors='coerce').values
+    second_values = data_rows.iloc[:, second_start_col:second_end_col]
+    
+    records = []
+    for i, kode in enumerate(kode_list):
+        customer = customer_list[i]
+        for j, product in enumerate(first_products):
+            value = first_values[i][j] if j < len(first_values[i]) else None
+            if pd.notna(value) and value > 1:
+                records.append({
+                    "Type": data_type,
+                    "Area": area,
+                    "Cabang": cabang,
+                    "Bulan": bulan,
+                    "Tahun": tahun,
+                    "Kode": kode,
+                    "Customer_Name": customer,
+                    "Produk": product,
+                    "Value": value,
+                    "Real": None
+                })
+        for j, product in enumerate(second_products):
+            if j < second_values.shape[1]:
+                value = second_values.iloc[i, j]
+                if pd.notna(value):
+                    is_numeric = isinstance(value, (int, float)) and value > 1
+                    is_alphanumeric = isinstance(value, str) and bool(re.search(r'[A-Za-z]', value)) and bool(re.search(r'\d', value))
+                    is_string = isinstance(value, str) and not is_numeric
+                    records.append({
+                        "Type": data_type,
+                        "Area": area,
+                        "Cabang": cabang,
+                        "Bulan": bulan,
+                        "Tahun": tahun,
+                        "Kode": kode,
+                        "Customer_Name": customer,
+                        "Produk": product,
+                        "Value": value if is_numeric else None,
+                        "Real": value if (is_alphanumeric or is_string) or (isinstance(value, (int, float)) and value > 1) else None
+
+                    })
+    
+    df_records = pd.DataFrame(records)
+    df_records = df_records.groupby(["Type", "Area", "Cabang", "Bulan", "Tahun", "Kode", "Customer_Name", "Produk"], as_index=False).first()
+    # Menghapus baris yang memiliki None di kolom 'Value' atau 'Real'
+    df_records = df_records.dropna(subset=["Value", "Real"])
+    df_records = df_records[df_records['Customer_Name'] != 'nan']
+    df_records = df_records.reset_index(drop=True)
+    return df_records
+
+# Streamlit App
+st.header('Masukkan File RNL!')
+uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
+if uploaded_file:
+    cleaned_df = process_excel(uploaded_file)
+    st.dataframe(cleaned_df)
+    st.download_button("Download Cleaned Data", cleaned_df.to_csv(index=False), file_name="cleaned_data.csv", mime="text/csv")
