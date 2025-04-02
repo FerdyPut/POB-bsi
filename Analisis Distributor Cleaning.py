@@ -493,9 +493,10 @@ def process_excel(file):
     return df_records
 
 # Streamlit App
-st.header('Masukkan File RNL!')
+st.header('📊 Masukkan File RNL!')
 uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
 if uploaded_file:
     cleaned_df = process_excel(uploaded_file)
     st.dataframe(cleaned_df)
     st.download_button("Download Cleaned Data", cleaned_df.to_csv(index=False), file_name="cleaned_data.csv", mime="text/csv")
+
