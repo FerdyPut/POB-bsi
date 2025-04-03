@@ -411,17 +411,21 @@ with tab3:
     def get_unique_filename(folder_path, filename):
         base, ext = os.path.splitext(filename)
     
-        # Ambil ulang daftar file setelah penghapusan
+        # Ambil ulang daftar file di folder dan di session_state
         existing_files = set(os.listdir(folder_path))
+        session_files = {file["name"] for file in st.session_state.files}
     
-        if filename not in existing_files:
-            return filename  # Jika belum ada file dengan nama yang sama, langsung pakai nama aslinya
+        all_existing_files = existing_files.union(session_files)  # Gabungkan daftar file dari dua sumber
+    
+        if filename not in all_existing_files:
+            return filename  # Jika nama file belum ada, langsung pakai nama aslinya
     
         counter = 1
-        while f"{base} ({counter}){ext}" in existing_files:
+        while f"{base} ({counter}){ext}" in all_existing_files:
             counter += 1
     
         return f"{base} ({counter}){ext}"
+
 
     
     # Fungsi untuk membersihkan data
@@ -530,7 +534,6 @@ with tab3:
         # Tampilkan data yang telah dibersihkan
         st.dataframe(cleaned_df)
     
-        # Tombol Simpan Data
         if st.button("Simpan Data"):
             # Gunakan fungsi get_unique_filename untuk mendapatkan nama file yang unik
             file_name = f"cleaned_{sheet_name}.csv"
@@ -540,13 +543,11 @@ with tab3:
             # Simpan file cleaned_df di dalam folder yang ditentukan
             cleaned_df.to_csv(file_path, index=False)
             
-            # Update session state files
+            # Simpan file ke session state tanpa menimpa yang sudah ada
             if 'files' not in st.session_state:
                 st.session_state.files = []
-            st.session_state.files.append({"name": file_name, "data": open(file_path, "rb").read()})
             
-            # Simpan data yang telah dibersihkan dalam session state
-            st.session_state.cleaned_data = cleaned_df
+            st.session_state.files.append({"name": file_name, "data": open(file_path, "rb").read()})
             
             st.success(f"Data telah disimpan dengan nama {file_name}")
     
