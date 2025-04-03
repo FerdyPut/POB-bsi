@@ -5,6 +5,7 @@ from datetime import datetime
 import zipfile
 import os
 from xlsxwriter import Workbook
+import re
 
 st.set_page_config(page_title="BSI - Support Information", layout="wide")
 
@@ -402,13 +403,28 @@ with tab2:
     else:
         st.info("Belum ada file yang tersedia untuk digabungkan.")
 with tab3:
-    import pandas as pd
-import streamlit as st
-from datetime import datetime
-import re
 
-def process_excel(file):
-    df = pd.read_excel(file, sheet_name="Pare pare B", header=None)
+# Folder tempat file disimpan
+FOLDER_PATH = "saved_files"
+if not os.path.exists(FOLDER_PATH):
+    os.makedirs(FOLDER_PATH)
+
+def get_unique_filename(folder_path, filename):
+    base, ext = os.path.splitext(filename)
+    existing_files = [f for f in os.listdir(folder_path) if f.startswith(base) and f.endswith(ext)]
+    
+    if filename not in existing_files:
+        return filename  # Jika belum ada file dengan nama yang sama, langsung pakai nama aslinya
+    
+    counter = 1
+    while f"{base} ({counter}){ext}" in existing_files:
+        counter += 1
+
+    return f"{base} ({counter}){ext}"
+
+# Fungsi untuk membersihkan data
+def process_excel(file, sheet_name):
+    df = pd.read_excel(file, sheet_name=sheet_name, header=None)
     
     # Ambil metadata dari file
     data_type = df.iloc[1, 1]
@@ -481,7 +497,6 @@ def process_excel(file):
                         "Produk": product,
                         "Value": value if is_numeric else None,
                         "Real": value if (is_alphanumeric or is_string) or (isinstance(value, (int, float)) and value > 1) else None
-
                     })
     
     df_records = pd.DataFrame(records)
@@ -490,13 +505,148 @@ def process_excel(file):
     df_records = df_records.dropna(subset=["Value", "Real"])
     df_records = df_records[df_records['Customer_Name'] != 'nan']
     df_records = df_records.reset_index(drop=True)
+    
     return df_records
 
 # Streamlit App
-st.header('📊 Masukkan File RNL!')
+st.title("Data Cleaning & Transformation")
+
+# Upload File
 uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
 if uploaded_file:
-    cleaned_df = process_excel(uploaded_file)
+    # Tampilkan pilihan sheet
+    sheet_names = pd.ExcelFile(uploaded_file).sheet_names
+    sheet_name = st.selectbox("Pilih Sheet untuk Dibersihkan", sheet_names)
+
+    # Proses dan tampilkan hasilnya
+    cleaned_df = process_excel(uploaded_file, sheet_name)
+    
+    # Simpan data yang sudah dibersihkan hanya ketika tombol simpan diklik
+    if 'cleaned_data' not in st.session_state:
+        st.session_state.cleaned_data = None
+
+    # Tampilkan data yang telah dibersihkan
     st.dataframe(cleaned_df)
-    st.download_button("Download Cleaned Data", cleaned_df.to_csv(index=False), file_name="cleaned_data.csv", mime="text/csv")
+
+    # Tombol Simpan Data
+    if st.button("Simpan Data"):
+        # Gunakan fungsi get_unique_filename untuk mendapatkan nama file yang unik
+        file_name = f"cleaned_{sheet_name}.csv"
+        file_name = get_unique_filename(FOLDER_PATH, file_name)
+        file_path = os.path.join(FOLDER_PATH, file_name)
+        
+        # Simpan file cleaned_df di dalam folder yang ditentukan
+        cleaned_df.to_csv(file_path, index=False)
+        
+        # Update session state files
+        if 'files' not in st.session_state:
+            st.session_state.files = []
+        st.session_state.files.append({"name": file_name, "data": open(file_path, "rb").read()})
+        
+        # Simpan data yang telah dibersihkan dalam session state
+        st.session_state.cleaned_data = cleaned_df
+        
+        st.success(f"Data telah disimpan dengan nama {file_name}")
+
+# File Management in session state
+if 'files' not in st.session_state:
+    st.session_state.files = []
+
+st.subheader("📂 Overview Saved Files")
+
+if st.session_state.files:
+    selected_files = []
+    select_all = st.checkbox("Select All")
+    
+    # Menampilkan checkbox untuk memilih file
+    for file in st.session_state.files:
+        checked = st.checkbox(file['name'], key=file['name'], value=select_all)
+        if checked:
+            selected_files.append(file['name'])
+
+    col1, col2, _ = st.columns([1, 1, 5])
+    
+    with col1:
+        if selected_files:
+            if len(selected_files) == 1:
+                # Download langsung file XLSX tanpa membaca CSV
+                file_name = selected_files[0]
+                file_path = os.path.join(FOLDER_PATH, file_name)
+
+                if os.path.exists(file_path):
+                    with open(file_path, "rb") as f:
+                        file_bytes = f.read()
+
+                    st.download_button(
+                        label="📥 Download File",
+                        data=file_bytes,
+                        file_name=file_name,
+                        mime="application/octet-stream",
+                        key="download_single_btn"
+                    )
+            else:
+                # Jika lebih dari satu file, buat ZIP
+                if st.button("📥 Download Selected as ZIP"):
+                    zip_buffer = BytesIO()
+                    with zipfile.ZipFile(zip_buffer, "w") as zipf:
+                        for file in st.session_state.files:
+                            if file['name'] in selected_files:
+                                zipf.writestr(file['name'], file['data'])
+
+                    st.download_button(
+                        label="Download ZIP",
+                        data=zip_buffer.getvalue(),
+                        file_name="datasets.zip",
+                        mime="application/zip",
+                        key="download_zip_btn"
+                    )
+
+    with col2:
+        if selected_files and not st.session_state.get("confirm_delete", False):
+            if st.button("🗑️ Delete Selected"):
+                st.session_state.confirm_delete = True
+                st.rerun()
+
+    if st.session_state.get("confirm_delete", False):
+        st.warning("⚠️ Yakin ingin mendelete file yang dipilih?")
+        col_ok, col_cancel = st.columns(2)
+        with col_ok:
+            if st.button("✅ Ya, Delete"):
+                for fname in selected_files:
+                    file_path = os.path.join(FOLDER_PATH, fname)
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                st.session_state.files = [
+                    file for file in st.session_state.files if file['name'] not in selected_files
+                ]
+                st.session_state.confirm_delete = False
+                st.rerun()
+        with col_cancel:
+            if st.button("❌ Kembali"):
+                st.session_state.confirm_delete = False
+                st.rerun()
+
+    st.divider()
+    if not st.session_state.get("confirm_delete_all", False):
+        if st.button("🗑️ Delete All Files"):
+            st.session_state.confirm_delete_all = True
+            st.rerun()
+
+    if st.session_state.get("confirm_delete_all", False):
+        st.warning("⚠️ Yakin ingin mendelete SEMUA file?")
+        col_ok_all, col_cancel_all = st.columns(2)
+        with col_ok_all:
+            if st.button("✅ Ya, Delete All"):
+                for file in os.listdir(FOLDER_PATH):
+                    os.remove(os.path.join(FOLDER_PATH, file))
+                st.session_state.files = []
+                st.session_state.confirm_delete_all = False
+                st.rerun()
+        with col_cancel_all:
+            if st.button("❌ Kembali"):
+                st.session_state.confirm_delete_all = False
+                st.rerun()
+
+else:
+    st.info("Belum ada file yang disimpan.")
 
