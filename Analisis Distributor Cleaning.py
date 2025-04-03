@@ -410,16 +410,19 @@ with tab3:
     
     def get_unique_filename(folder_path, filename):
         base, ext = os.path.splitext(filename)
-        existing_files = [f for f in os.listdir(folder_path) if f.startswith(base) and f.endswith(ext)]
-        
+    
+        # Ambil ulang daftar file setelah penghapusan
+        existing_files = set(os.listdir(folder_path))
+    
         if filename not in existing_files:
             return filename  # Jika belum ada file dengan nama yang sama, langsung pakai nama aslinya
-        
+    
         counter = 1
         while f"{base} ({counter}){ext}" in existing_files:
             counter += 1
     
         return f"{base} ({counter}){ext}"
+
     
     # Fungsi untuk membersihkan data
     def process_excel(file, sheet_name):
