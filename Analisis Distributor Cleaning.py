@@ -9,37 +9,36 @@ import re
 
 st.set_page_config(page_title="BSI - Support Information", layout="wide")
 
-FOLDER_PATH = "saved_files"
-
-if not os.path.exists(FOLDER_PATH):
-    os.makedirs(FOLDER_PATH)
-
-def load_files():
-    files = []
-    for filename in os.listdir(FOLDER_PATH):
-        if filename.endswith(".xlsx"):
-            with open(os.path.join(FOLDER_PATH, filename), "rb") as f:
-                files.append({
-                    "name": filename,
-                    "data": f.read()
-                })
-    return files
-
-if 'files' not in st.session_state:
-    st.session_state.files = load_files()
-
-if 'confirm_delete' not in st.session_state:
-    st.session_state.confirm_delete = False
-
-if 'confirm_delete_all' not in st.session_state:
-    st.session_state.confirm_delete_all = False
-
-st.session_state.files = load_files()
-
 # Mulai Tabs
 tab1, tab2, tab3 = st.tabs(["📦 POB", "Penggabungan Data - POB", "📝 RNL"])
 
 with tab1:
+    FOLDER_PATH = "saved_files"
+
+    if not os.path.exists(FOLDER_PATH):
+        os.makedirs(FOLDER_PATH)
+    
+    def load_files():
+        files = []
+        for filename in os.listdir(FOLDER_PATH):
+            if filename.endswith(".xlsx"):
+                with open(os.path.join(FOLDER_PATH, filename), "rb") as f:
+                    files.append({
+                        "name": filename,
+                        "data": f.read()
+                    })
+        return files
+    
+    if 'files' not in st.session_state:
+        st.session_state.files = load_files()
+    
+    if 'confirm_delete' not in st.session_state:
+        st.session_state.confirm_delete = False
+    
+    if 'confirm_delete_all' not in st.session_state:
+        st.session_state.confirm_delete_all = False
+    
+    st.session_state.files = load_files()
     st.header("📊 Masukkan File POB")
 
     # Step 1: Pilih POB
