@@ -413,7 +413,7 @@ with tab3:
     
         # Ambil ulang daftar file di folder dan di session_state
         existing_files = set(os.listdir(folder_path))
-        session_files = {file["name"] for file in st.session_state.files}
+        session_files = {file["name"] for file in st.session_state.files} if "files" in st.session_state else set()
     
         all_existing_files = existing_files.union(session_files)  # Gabungkan daftar file dari dua sumber
     
@@ -425,6 +425,7 @@ with tab3:
             counter += 1
     
         return f"{base} ({counter}){ext}"
+
 
 
     
@@ -539,40 +540,49 @@ with tab3:
             file_name = f"cleaned_{sheet_name}.csv"
             file_name = get_unique_filename(FOLDER_PATH, file_name)
             file_path = os.path.join(FOLDER_PATH, file_name)
-            
-            # Simpan file cleaned_df di dalam folder yang ditentukan
+        
+            # Simpan file cleaned_df di dalam folder
             cleaned_df.to_csv(file_path, index=False)
-            
-            # Simpan file ke session state tanpa menimpa yang sudah ada
+        
+            # Pastikan 'files' tetap menyimpan semua file yang ada
             if 'files' not in st.session_state:
                 st.session_state.files = []
-            
+        
+            # Tambahkan file baru tanpa menggantikan file lama
             st.session_state.files.append({"name": file_name, "data": open(file_path, "rb").read()})
-            
+        
             st.success(f"Data telah disimpan dengan nama {file_name}")
     
+    FOLDER_PATH = "saved_files"  # Pastikan folder ini ada
+    
+    # Buat folder jika belum ada
+    if not os.path.exists(FOLDER_PATH):
+        os.makedirs(FOLDER_PATH)
+    
     # File Management in session state
-    if 'files' not in st.session_state:
-        st.session_state.files = []
+    if "files" not in st.session_state:
+        st.session_state.files = [{"name": f} for f in os.listdir(FOLDER_PATH)]  # Load file dari folder
     
     st.subheader("📂 Overview Saved Files")
+    
+    # Pastikan daftar file selalu diperbarui dengan isi folder
+    st.session_state.files = [{"name": f} for f in os.listdir(FOLDER_PATH)]
     
     if st.session_state.files:
         selected_files = []
         select_all = st.checkbox("Select All")
-        
+    
         # Menampilkan checkbox untuk memilih file
         for file in st.session_state.files:
-            checked = st.checkbox(file['name'], key=file['name'], value=select_all)
+            checked = st.checkbox(file["name"], key=file["name"], value=select_all)
             if checked:
-                selected_files.append(file['name'])
+                selected_files.append(file["name"])
     
-        col1, col2, _ = st.columns([1, 1, 5])
-        
+        col1, col2, col3 = st.columns([1, 1, 1])
+    
         with col1:
             if selected_files:
                 if len(selected_files) == 1:
-                    # Download langsung file XLSX tanpa membaca CSV
                     file_name = selected_files[0]
                     file_path = os.path.join(FOLDER_PATH, file_name)
     
@@ -585,51 +595,61 @@ with tab3:
                             data=file_bytes,
                             file_name=file_name,
                             mime="application/octet-stream",
-                            key="download_single_btn"
+                            key="download_single_btn",
                         )
+    
                 else:
-                    # Jika lebih dari satu file, buat ZIP
                     if st.button("📥 Download Selected as ZIP"):
                         zip_buffer = BytesIO()
                         with zipfile.ZipFile(zip_buffer, "w") as zipf:
-                            for file in st.session_state.files:
-                                if file['name'] in selected_files:
-                                    zipf.writestr(file['name'], file['data'])
+                            for file in selected_files:
+                                file_path = os.path.join(FOLDER_PATH, file)
+                                if os.path.exists(file_path):
+                                    with open(file_path, "rb") as f:
+                                        zipf.writestr(file, f.read())
     
                         st.download_button(
                             label="Download ZIP",
                             data=zip_buffer.getvalue(),
                             file_name="datasets.zip",
                             mime="application/zip",
-                            key="download_zip_btn"
+                            key="download_zip_btn",
                         )
     
         with col2:
-            if selected_files and not st.session_state.get("confirm_delete", False):
+            if selected_files:
                 if st.button("🗑️ Delete Selected"):
                     st.session_state.confirm_delete = True
                     st.rerun()
     
+        with col3:
+            if st.button("🔄 Refresh File List"):
+                st.session_state.files = [{"name": f} for f in os.listdir(FOLDER_PATH)]
+                st.success("Daftar file telah diperbarui!")
+                st.rerun()
+    
         if st.session_state.get("confirm_delete", False):
             st.warning("⚠️ Yakin ingin mendelete file yang dipilih?")
             col_ok, col_cancel = st.columns(2)
+    
             with col_ok:
                 if st.button("✅ Ya, Delete"):
                     for fname in selected_files:
                         file_path = os.path.join(FOLDER_PATH, fname)
                         if os.path.exists(file_path):
                             os.remove(file_path)
-                    st.session_state.files = [
-                        file for file in st.session_state.files if file['name'] not in selected_files
-                    ]
+    
+                    st.session_state.files = [{"name": f} for f in os.listdir(FOLDER_PATH)]
                     st.session_state.confirm_delete = False
                     st.rerun()
+    
             with col_cancel:
                 if st.button("❌ Kembali"):
                     st.session_state.confirm_delete = False
                     st.rerun()
     
         st.divider()
+    
         if not st.session_state.get("confirm_delete_all", False):
             if st.button("🗑️ Delete All Files"):
                 st.session_state.confirm_delete_all = True
@@ -638,13 +658,16 @@ with tab3:
         if st.session_state.get("confirm_delete_all", False):
             st.warning("⚠️ Yakin ingin mendelete SEMUA file?")
             col_ok_all, col_cancel_all = st.columns(2)
+    
             with col_ok_all:
                 if st.button("✅ Ya, Delete All"):
                     for file in os.listdir(FOLDER_PATH):
                         os.remove(os.path.join(FOLDER_PATH, file))
-                    st.session_state.files = []
+    
+                    st.session_state.files = []  # Reset daftar file di session state
                     st.session_state.confirm_delete_all = False
                     st.rerun()
+    
             with col_cancel_all:
                 if st.button("❌ Kembali"):
                     st.session_state.confirm_delete_all = False
