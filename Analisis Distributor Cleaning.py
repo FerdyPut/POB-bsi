@@ -107,14 +107,19 @@ with tab1:
                         bulan_plus_fix = bulan_plus.get(nama_bulan, nama_bulan)
                         bulan_plus2_fix = bulan_plus2.get(nama_bulan, nama_bulan)
                         try:
-                            if isinstance(bulan, str):  # Pastikan bulan berupa string sebelum dikonversi
-                                bulan_dt = datetime.strptime(bulan, "%B")  # Ubah ke datetime (format nama bulan lengkap)
+                            if isinstance(bulan, str):
+                                try:
+                                    # Coba format "May-25"
+                                    bulan_dt = datetime.strptime(bulan, "%b-%y")
+                                except ValueError:
+                                    # Coba format lain misalnya "January"
+                                    bulan_dt = datetime.strptime(bulan, "%B")
                             else:
-                                bulan_dt = bulan  # Jika sudah datetime, langsung gunakan
-
-                            bulan_formatted = bulan_dt.strftime('%b-%y')  # Format singkat (contoh: "Mar-24")
+                                bulan_dt = bulan  # Jika sudah datetime
+                        
+                            bulan_formatted = bulan_dt.strftime('%b-%y')
                         except ValueError:
-                            bulan_formatted = bulan  # Jika gagal parsing, tetap gunakan nilai aslinya
+                            bulan_formatted = bulan  # Jika tetap gagal parsing
 
 
                         # Data Cleaning sesuai POB dan Channel
