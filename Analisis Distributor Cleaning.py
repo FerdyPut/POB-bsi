@@ -106,20 +106,20 @@ with tab1:
                         bulan_minus_1 = bulan_minus.get(nama_bulan, nama_bulan)
                         bulan_plus_fix = bulan_plus.get(nama_bulan, nama_bulan)
                         bulan_plus2_fix = bulan_plus2.get(nama_bulan, nama_bulan)
-                        try:
-                            if isinstance(bulan, str):
-                                try:
-                                    # Coba format "May-25"
-                                    bulan_dt = datetime.strptime(bulan, "%b-%y")
-                                except ValueError:
-                                    # Coba format lain misalnya "January"
-                                    bulan_dt = datetime.strptime(bulan, "%B")
-                            else:
-                                bulan_dt = bulan  # Jika sudah datetime
-                        
-                            bulan_formatted = bulan_dt.strftime('%b-%y')
-                        except ValueError:
-                            bulan_formatted = bulan  # Jika tetap gagal parsing
+                        def parse_bulan(bulan):
+                            if isinstance(bulan, datetime):
+                                return bulan.strftime('%b-%y')
+                            elif isinstance(bulan, str):
+                                # Coba beberapa format string yang mungkin
+                                for fmt in ("%b-%y", "%B", "%B-%y", "%m/%Y", "%Y-%m"):
+                                    try:
+                                        dt = datetime.strptime(bulan, fmt)
+                                        return dt.strftime('%b-%y')
+                                    except ValueError:
+                                        continue
+                            return bulan  # fallback kalau parsing gagal
+                        bulan_formatted = parse_bulan(bulan)
+
 
 
                         # Data Cleaning sesuai POB dan Channel
